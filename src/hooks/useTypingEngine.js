@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-export const useTypingEngine = (text, timerDurationMinutes = 1) => {
+export const useTypingEngine = (text) => {
   const [userInput, setUserInput] = useState('');
   const [status, setStatus] = useState('idle'); // idle, typing, finished
   const [correctKeyStrokes, setCorrectKeyStrokes] = useState(0);
   const [totalKeyStrokes, setTotalKeyStrokes] = useState(0);
   const [errors, setErrors] = useState(0);
-  const [startTime, setStartTime] = useState(null);
-  const [endTime, setEndTime] = useState(null);
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const reset = useCallback(() => {
     setUserInput('');
@@ -15,15 +15,25 @@ export const useTypingEngine = (text, timerDurationMinutes = 1) => {
     setCorrectKeyStrokes(0);
     setTotalKeyStrokes(0);
     setErrors(0);
-    setStartTime(null);
-    setEndTime(null);
+    setElapsedSeconds(0);
   }, []);
+
+  useEffect(() => {
+    let interval;
+    if (status === 'typing') {
+      interval = setInterval(() => {
+        setElapsedSeconds(s => s + 1);
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
 
   const handleCharInput = useCallback((value) => {
     if (status === 'finished') return;
     if (status === 'idle') {
       setStatus('typing');
-      setStartTime(Date.now());
     }
 
     const isBackspace = value.length < userInput.length;
@@ -43,20 +53,14 @@ export const useTypingEngine = (text, timerDurationMinutes = 1) => {
     // End condition
     if (value.length === text.length) {
       setStatus('finished');
-      setEndTime(Date.now());
     }
   }, [status, text, userInput.length]);
 
-  const elapsedTimeInMinutes = useMemo(() => {
-    if (!startTime) return 0;
-    const finalTime = endTime || Date.now();
-    return (finalTime - startTime) / 60000;
-  }, [startTime, endTime, status]); // status added to trigger re-renders ideally on tick, but for now it's static on render
-
   const wpm = useMemo(() => {
-    if (elapsedTimeInMinutes === 0) return 0;
-    return Math.round((correctKeyStrokes / 5) / elapsedTimeInMinutes);
-  }, [correctKeyStrokes, elapsedTimeInMinutes]);
+    const minutes = elapsedSeconds / 60;
+    if (minutes === 0) return 0;
+    return Math.round((correctKeyStrokes / 5) / minutes);
+  }, [correctKeyStrokes, elapsedSeconds]);
 
   const accuracy = useMemo(() => {
     if (totalKeyStrokes === 0) return 100;

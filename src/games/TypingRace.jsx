@@ -13,6 +13,8 @@ export const TypingRace = ({ onGameOver }) => {
   
   const [isActive, setIsActive] = useState(false);
   const [raceFinished, setRaceFinished] = useState(false);
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
   const inputRef = useRef(null);
   const aiTimerRef = useRef(null);
 
@@ -20,6 +22,28 @@ export const TypingRace = ({ onGameOver }) => {
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
+
+  const finishRace = useCallback((playerWon) => {
+    setRaceFinished(true);
+    setIsActive(false);
+    
+    // Wait a sec before passing score
+    setTimeout(() => {
+       const wpm = Math.floor((userInput.length / 5) / (aiProgress / 100 * 45 / 60) || 40); 
+       // score calculation based on win/loss and progress
+       const score = playerWon ? 5000 + wpm * 10 : Math.floor(playerProgress * 20);
+       
+       const accuracy = totalStrokes > 0 ? Math.round(((totalStrokes - errors) / totalStrokes) * 100) : 100;
+       
+       onGameOver({
+         score,
+         wpm,
+         accuracy,
+         errors,
+         totalStrokes
+       });
+    }, 2000);
+  }, [userInput.length, aiProgress, playerProgress, onGameOver, totalStrokes, errors]);
 
   // AI Logic (moves constantly towards 100% over ~45 seconds)
   useEffect(() => {
@@ -37,20 +61,7 @@ export const TypingRace = ({ onGameOver }) => {
       }, 100);
     }
     return () => clearInterval(aiTimerRef.current);
-  }, [isActive, raceFinished]);
-
-  const finishRace = (playerWon) => {
-    setRaceFinished(true);
-    setIsActive(false);
-    
-    // Wait a sec before passing score
-    setTimeout(() => {
-       const wpm = Math.floor((userInput.length / 5) / (aiProgress / 100 * 45 / 60) || 40); 
-       // score calculation based on win/loss and progress
-       const score = playerWon ? 5000 + wpm * 10 : Math.floor(playerProgress * 20);
-       onGameOver(score);
-    }, 2000);
-  };
+  }, [isActive, raceFinished, finishRace]);
 
   const handleInput = (e) => {
     if (raceFinished) return;
@@ -59,10 +70,17 @@ export const TypingRace = ({ onGameOver }) => {
     
     // Start race
     if (!isActive && val.length > 0) setIsActive(true);
+
+    if (val.length > userInput.length) {
+      setTotalStrokes(s => s + 1);
+    }
     
     // Check if correct
     for (let i = 0; i < val.length; i++) {
-       if (val[i] !== textToType[i]) return; // Stop accepting if typo
+       if (val[i] !== textToType[i]) {
+         if (val.length > userInput.length) setErrors(e => e + 1);
+         return; // Stop accepting if typo
+       }
     }
     
     setUserInput(val);

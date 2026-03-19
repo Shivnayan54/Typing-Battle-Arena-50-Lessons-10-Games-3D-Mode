@@ -312,12 +312,24 @@ const Games = () => {
   const [showGameModal, setShowGameModal] = useState(false);
   const [finalGameStats, setFinalGameStats] = useState(null);
 
-  const handleGameOver = useCallback((finalScore) => {
+  const handleGameOver = useCallback((stats) => {
     setActiveGame(null);
+    // stats can be a number (old score-only) or an object { score, wpm, accuracy, errors }
+    const finalScore = typeof stats === 'object' ? stats.score : stats;
+    const wpm = typeof stats === 'object' ? stats.wpm : 0;
+    const accuracy = typeof stats === 'object' ? stats.accuracy : 100;
+    const errors = typeof stats === 'object' ? stats.errors : 0;
+
     const xpReward = Math.max(10, Math.floor(finalScore / 10));
     addXp(xpReward);
-    addHistoryEntry({ type: 'game', lessonId: `game-${activeGame}`, wpm: 0, accuracy: 100, errors: 0 });
-    setFinalGameStats({ wpm: 'N/A', accuracy: 100, totalStrokes: finalScore, errors: 0, xpEarned: xpReward });
+    addHistoryEntry({ type: 'game', lessonId: `game-${activeGame}`, wpm: wpm || 0, accuracy: accuracy || 100, errors: errors || 0 });
+    setFinalGameStats({ 
+      wpm: wpm || 'N/A', 
+      accuracy: accuracy || 0, 
+      totalStrokes: typeof stats === 'object' ? stats.totalStrokes : finalScore, 
+      errors: errors || 0, 
+      xpEarned: xpReward 
+    });
     setShowGameModal(true);
   }, [activeGame, addXp, addHistoryEntry]);
 

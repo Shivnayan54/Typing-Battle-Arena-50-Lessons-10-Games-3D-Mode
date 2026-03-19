@@ -11,6 +11,9 @@ export const BossBattle = ({ onGameOver }) => {
   // Stages: 1=Easy, 2=Med, 3=Hard (Boss changes attack speeds and words length)
   const [stage, setStage] = useState(1); 
   const [score, setScore] = useState(0);
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   
   const [currentAttackId, setCurrentAttackId] = useState(null);
   const [attackWord, setAttackWord] = useState('');
@@ -24,6 +27,12 @@ export const BossBattle = ({ onGameOver }) => {
 
   // Focus
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, [currentAttackId]);
+
+  const playerTakeDamage = useCallback(() => {
+     setPlayerHealth(h => Math.max(0, h - 15));
+     setPlayerShake(true);
+     setTimeout(() => setPlayerShake(false), 500);
+  }, []);
 
   // Boss attack loop
   useEffect(() => {
@@ -54,7 +63,7 @@ export const BossBattle = ({ onGameOver }) => {
       
       return () => clearTimeout(attackTimerRef.current);
     }
-  }, [currentAttackId, bossHealth, playerHealth, stage]);
+  }, [currentAttackId, bossHealth, playerHealth, stage, playerTakeDamage]);
 
   // Stage progression
   useEffect(() => {
@@ -64,19 +73,23 @@ export const BossBattle = ({ onGameOver }) => {
 
   // End game logic
   useEffect(() => {
-    if (playerHealth <= 0) {
-       setTimeout(() => onGameOver(score), 2000);
-    } else if (bossHealth <= 0) {
-       // Win bonus
-       setTimeout(() => onGameOver(score + 10000), 2000);
-    }
-  }, [playerHealth, bossHealth, score, onGameOver]);
+    if (playerHealth <= 0 || bossHealth <= 0) {
+      const isWin = bossHealth <= 0;
+      const finalScore = isWin ? score + 10000 : score;
+      
+      const duration = startTime ? (Date.now() - startTime) / 60000 : 0.1;
+      const wpm = Math.round((totalStrokes / 5) / duration);
+      const accuracy = totalStrokes > 0 ? Math.round(((totalStrokes - errors) / totalStrokes) * 100) : 100;
 
-  const playerTakeDamage = () => {
-     setPlayerHealth(h => Math.max(0, h - 15));
-     setPlayerShake(true);
-     setTimeout(() => setPlayerShake(false), 500);
-  };
+      setTimeout(() => onGameOver({
+        score: finalScore,
+        wpm,
+        accuracy,
+        errors,
+        totalStrokes
+      }), 2000);
+    }
+  }, [playerHealth, bossHealth, score, onGameOver, startTime, totalStrokes, errors]);
 
   const bossTakeDamage = () => {
      setBossHealth(h => Math.max(0, h - 8)); // Takes about 13 hits to kill
@@ -91,8 +104,13 @@ export const BossBattle = ({ onGameOver }) => {
      const val = e.target.value;
      
      // strict matching
-     for (let i = 0; i < val.length; i++) {
-        if (val[i] !== attackWord[i]) return; // Missed char, do nothing or play error sound
+     if (val.length > userInput.length) {
+       if (!startTime) setStartTime(Date.now());
+       setTotalStrokes(s => s + 1);
+       if (val[val.length - 1] !== attackWord[val.length - 1]) {
+         setErrors(e => e + 1);
+         return;
+       }
      }
      
      setUserInput(val);

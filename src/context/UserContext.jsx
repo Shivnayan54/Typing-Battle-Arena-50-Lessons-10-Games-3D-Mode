@@ -1,87 +1,98 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { calculateRank, calculateLevelFromXP, calculateStreak } from '../utils/gamification';
+/* eslint-disable */
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
+import { calculateRank, calculateLevelFromXP, calculateStreak, getDailyAttempts, incrementDailyAttempts, DAILY_LIMIT, getRankData } from '../utils/gamification';
+import { sounds } from '../utils/sounds';
 
 const UserContext = createContext();
-
 export const useUserContext = () => useContext(UserContext);
 
 export const UserProvider = ({ children }) => {
-  const [xp, setXp] = useState(() => parseInt(localStorage.getItem('typing_xp')) || 0);
-  const [completedLessons, setCompletedLessons] = useState(() => {
-    try {
-      const saved = localStorage.getItem('typing_completed_lessons');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
-  });
-  const [streak, setStreak] = useState(() => parseInt(localStorage.getItem('typing_streak')) || 0);
-  const [lastLoginDate, setLastLoginDate] = useState(() => localStorage.getItem('typing_last_login') || null);
-  
-  const [level, setLevel] = useState(1);
-  const [rank, setRank] = useState('Beginner');
-  
-  const [history, setHistory] = useState(() => {
-    try {
-      const saved = localStorage.getItem('typing_history');
-      const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch { return []; }
-  });
+  const { user, persistField, updateUser } = useAuth();
 
-  // Init auth / daily streak logic
-  useEffect(() => {
-    const currentStreak = calculateStreak(lastLoginDate, streak);
-    setStreak(currentStreak);
-    setLastLoginDate(new Date().toISOString());
-    localStorage.setItem('typing_streak', currentStreak);
-    localStorage.setItem('typing_last_login', new Date().toISOString());
-  }, []);
+  // ─── Derive all state from auth user profile ───────────────────────────────
+  const xp = user?.xp ?? 0;
+  const level = calculateLevelFromXP(xp);
+  const rank = calculateRank(xp);
+  const streak = user?.streak ?? 0;
+  const completedLessons = user?.completedLessons ?? [];
+  const history = user?.history ?? [];
+  const soundEnabled = user?.soundEnabled ?? true;
+  const dailyAttempts = getDailyAttempts(user?.email);
 
-  // Update level and rank whenever XP changes
-  useEffect(() => {
-    setLevel(calculateLevelFromXP(xp));
-    setRank(calculateRank(xp));
-    localStorage.setItem('typing_xp', xp);
-  }, [xp]);
+  // Computed stats
+  const bestWpm = history.length > 0 ? Math.max(...history.map(h => h.wpm || 0)) : 0;
+  const avgWpm = history.length > 0 ? Math.round(history.reduce((a, b) => a + (b.wpm || 0), 0) / history.length) : 0;
+  const avgAccuracy = history.length > 0 ? Math.round(history.reduce((a, b) => a + (b.accuracy || 0), 0) / history.length) : 0;
 
-  useEffect(() => {
-    localStorage.setItem('typing_completed_lessons', JSON.stringify(completedLessons));
-  }, [completedLessons]);
-  
-  useEffect(() => {
-    // Keep max 100 history entries
-    if (history.length > 100) {
-      setHistory(prev => prev.slice(0, 100));
-    }
-    localStorage.setItem('typing_history', JSON.stringify(history));
-  }, [history]);
+  // ─── Actions ──────────────────────────────────────────────────────────────
+  const addXp = useCallback((amount) => {
+    if (!user) return;
+    const newXp = xp + amount;
+    const prevLevel = calculateLevelFromXP(xp);
+    const newLevel = calculateLevelFromXP(newXp);
+    if (newLevel > prevLevel && soundEnabled) sounds.levelUp();
+    persistField('xp', newXp);
+  }, [user, xp, soundEnabled, persistField]);
 
-  const addXp = (amount) => {
-    setXp(prev => prev + amount);
-  };
-
-  const markLessonComplete = (lessonId) => {
+  const markLessonComplete = useCallback((lessonId) => {
+    if (!user) return;
     if (!completedLessons.includes(lessonId)) {
-      setCompletedLessons(prev => [...prev, lessonId]);
+      const updated = [...completedLessons, lessonId];
+      persistField('completedLessons', updated);
     }
-  };
+  }, [user, completedLessons, persistField]);
 
-  const addHistoryEntry = (entry) => {
-    setHistory(prev => [{ ...entry, date: new Date().toISOString() }, ...prev]);
-  };
+  const addHistoryEntry = useCallback((entry) => {
+    if (!user) return;
+    const newEntry = { ...entry, date: new Date().toISOString() };
+    const updated = [newEntry, ...history].slice(0, 100);
+    persistField('history', updated);
+  }, [user, history, persistField]);
 
-  const isLessonUnlocked = (lessonId) => {
+  const isLessonUnlocked = useCallback((lessonId) => {
     if (lessonId === 1) return true;
     return completedLessons.includes(lessonId - 1);
-  };
+  }, [completedLessons]);
+
+  const recordDailyAttempt = useCallback(() => {
+    if (!user) return 0;
+    const newCount = incrementDailyAttempts(user.email);
+    if (newCount >= DAILY_LIMIT) {
+      const today = new Date().toISOString().split('T')[0];
+      const lastStreakDay = user.lastStreakDay;
+      if (lastStreakDay !== today) {
+        const lastLogin = user.lastLoginDate;
+        const newStreak = calculateStreak(lastLogin, user.streak) + (lastStreakDay ? 0 : 0);
+        const finalStreak = streak + 1;
+        updateUser({ streak: finalStreak, lastStreakDay: today, lastLoginDate: new Date().toISOString() });
+        if (soundEnabled) sounds.streakMilestone();
+      }
+    }
+    return newCount;
+  }, [user, streak, soundEnabled, updateUser]);
+
+  const toggleSound = useCallback(() => {
+    sounds.setEnabled(!soundEnabled);
+    persistField('soundEnabled', !soundEnabled);
+  }, [soundEnabled, persistField]);
+
+  // Sync sound engine
+  useEffect(() => {
+    sounds.setEnabled(soundEnabled);
+  }, [soundEnabled]);
 
   return (
     <UserContext.Provider value={{
-      xp, addXp, 
-      level, rank, 
-      streak, 
+      xp, addXp,
+      level, rank,
+      streak,
       completedLessons, markLessonComplete, isLessonUnlocked,
-      history, addHistoryEntry
+      history, addHistoryEntry,
+      soundEnabled, toggleSound,
+      dailyAttempts,
+      recordDailyAttempt,
+      bestWpm, avgWpm, avgAccuracy,
     }}>
       {children}
     </UserContext.Provider>

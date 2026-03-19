@@ -3,32 +3,250 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary: 124 58 237;
+    --color-accent-cyan: 6 182 212;
+    --color-accent-emerald: 16 185 129;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
   body {
-    @apply antialiased text-slate-900 bg-background-light dark:text-slate-100 dark:bg-background-dark transition-colors duration-300;
-    font-family: 'Inter', sans-serif;
+    @apply antialiased text-slate-100 bg-background-dark transition-colors duration-300;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    background-color: #080b14;
+  }
+
+  * {
+    box-sizing: border-box;
   }
 }
 
 @layer components {
+  /* Nova Primary Button */
   .btn-primary {
-    @apply px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-5 py-2.5 bg-gradient-to-r from-nova-600 to-nova-500 text-white rounded-xl font-bold transition-all duration-300
+      shadow-glow-violet hover:shadow-glow-violet-lg hover:from-nova-700 hover:to-nova-600 
+      hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0;
   }
   
+  /* Secondary button */
+  .btn-secondary {
+    @apply px-5 py-2.5 bg-white/5 border border-white/10 text-slate-200 rounded-xl font-bold transition-all duration-300
+      hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5 active:translate-y-0;
+  }
+  
+  /* Glass panel - premium dark glass */
   .glass-panel {
-    @apply bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/20 dark:border-slate-700/50 shadow-xl rounded-2xl;
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] shadow-nova rounded-2xl;
+  }
+  
+  /* Glass card - slightly lighter */
+  .glass-card {
+    @apply bg-white/[0.06] backdrop-blur-lg border border-white/[0.1] rounded-2xl transition-all duration-300;
+  }
+  
+  /* Gradient text */
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-nova-400 via-violet-300 to-cyan-400;
+  }
+  
+  .text-gradient-cyan {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400;
+  }
+
+  /* Glow divider */
+  .glow-divider {
+    @apply h-px w-full;
+    background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.5), rgba(6, 182, 212, 0.5), transparent);
+  }
+
+  /* Premium stat card */
+  .stat-card {
+    @apply glass-panel p-6 flex flex-col gap-2 relative overflow-hidden;
+  }
+
+  /* Typing char states */
+  .char-pending {
+    @apply text-slate-600;
+  }
+  .char-correct {
+    @apply text-slate-100;
+  }
+  .char-incorrect {
+    @apply text-rose-400 bg-rose-500/10 rounded-sm;
+  }
+  .char-cursor {
+    @apply relative;
+  }
+  .char-cursor::before {
+    content: '';
+    @apply absolute -left-0.5 top-0 bottom-0 w-0.5 bg-nova-400 rounded-full;
+    animation: cursor-blink 1s step-end infinite;
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.8);
+  }
+
+  /* Animated progress bar */
+  .progress-bar {
+    @apply h-1.5 rounded-full overflow-hidden bg-white/10;
+  }
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+    background: linear-gradient(90deg, #7c3aed, #06b6d4);
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.5);
+  }
+
+  /* Rank badge */
+  .rank-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold border;
+  }
+
+  /* Section label */
+  .section-label {
+    @apply inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest
+      bg-nova-600/20 border border-nova-500/30 text-nova-300;
+  }
+
+  /* Nova glow card hover */
+  .nova-card {
+    @apply glass-card p-6 relative overflow-hidden cursor-pointer
+      hover:border-nova-500/30 hover:shadow-glow-violet hover:-translate-y-1;
   }
 }
 
-/* Custom scrollbar for webkit */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full dark:bg-slate-600;
+  background: rgba(124, 58, 237, 0.3);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-slate-400 dark:bg-slate-500;
+  background: rgba(124, 58, 237, 0.6);
+}
+
+/* Particle canvas */
+#nova-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Typing text - monospace override */
+.typing-area {
+  font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  font-feature-settings: "liga" 0;
+}
+
+/* Animated gradient text */
+.animate-gradient-text {
+  background-size: 200% 200%;
+  animation: gradient-x 4s ease infinite;
+}
+
+/* shimmer effect */
+.shimmer-effect {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* Glow behind typing box */
+.typing-glow {
+  position: relative;
+}
+.typing-glow::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(ellipse at center, rgba(124, 58, 237, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  border-radius: 32px;
+}
+
+/* Smooth flame animation */
+@keyframes flame {
+  0%, 100% { transform: scaleY(1) scaleX(1) rotate(-2deg); }
+  25% { transform: scaleY(1.1) scaleX(0.95) rotate(2deg); }
+  50% { transform: scaleY(0.95) scaleX(1.05) rotate(-1deg); }
+  75% { transform: scaleY(1.05) scaleX(0.98) rotate(1deg); }
+}
+.animate-flame {
+  animation: flame 1.2s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Smooth page load */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-enter 0.5s ease-out;
+}
+
+/* XP bar glow */
+@keyframes xp-fill {
+  from { width: 0; }
+}
+
+/* Unlock animation */
+@keyframes unlock {
+  0% { transform: scale(0.8) rotate(-5deg); opacity: 0; }
+  60% { transform: scale(1.05) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.animate-unlock {
+  animation: unlock 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Celebration pulse */
+@keyframes celebrate {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-celebrate {
+  animation: celebrate 0.6s ease-in-out 3;
+}
+
+/* ═══════════════ LIGHT MODE OVERRIDES ═══════════════ */
+.light {
+  color-scheme: light;
+}
+.light body {
+  background-color: #f1f5f9 !important;
+  color: #0f172a;
+}
+.light .glass-panel {
+  background: rgba(255,255,255,0.7) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+}
+.light .glass-card {
+  background: rgba(255,255,255,0.6) !important;
+  border-color: rgba(0,0,0,0.07) !important;
+}
+.light .char-pending { color: #94a3b8; }
+.light .char-correct { color: #1e293b; }
+.light .char-incorrect { color: #ef4444; background: rgba(239,68,68,0.08); }
+.light .progress-bar { background: rgba(0,0,0,0.08) !important; }
+.light ::-webkit-scrollbar-track { background: #e2e8f0; }
+.light ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.4); }
+.light .text-slate-400 { color: #475569; }
+.light .text-slate-500 { color: #64748b; }
+.light .text-slate-600 { color: #475569; }
+.light #nova-particles { opacity: 0.3; }
+
+/* Smooth transition for theme switch */
+body, .glass-panel, .glass-card {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }

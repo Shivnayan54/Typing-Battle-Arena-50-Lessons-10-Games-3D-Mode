@@ -10,6 +10,9 @@ export const WordShooter = ({ onGameOver }) => {
   const [misses, setMisses] = useState(0);
   const [activeInput, setActiveInput] = useState('');
   const [activeTargetId, setActiveTargetId] = useState(null);
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   
   const timerRef = useRef(null);
   const maxMisses = 10;
@@ -58,7 +61,9 @@ export const WordShooter = ({ onGameOver }) => {
     const handleKeyDown = (e) => {
       if (e.key.length !== 1 && e.key !== 'Backspace') return;
       
+      if (!startTime) setStartTime(Date.now());
       const char = e.key.toLowerCase();
+      if (char !== 'backspace') setTotalStrokes(s => s + 1);
       
       if (char === 'backspace') {
         setActiveInput(prev => prev.slice(0, -1));
@@ -81,6 +86,7 @@ export const WordShooter = ({ onGameOver }) => {
              }
           } else {
              // Miss penalty
+             setErrors(err => err + 1);
              setScore(s => Math.max(0, s - 5));
           }
         } else {

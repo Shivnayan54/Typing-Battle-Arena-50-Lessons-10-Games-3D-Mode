@@ -132,6 +132,9 @@ export const Type3D = ({ onGameOver }) => {
   const [score, setScore] = useState(0);
   const [health, setHealth] = useState(100);
   const [explosions, setExplosions] = useState([]);
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   const spawnTimerRef = useRef(null);
 
   // Spawn logic
@@ -151,7 +154,9 @@ export const Type3D = ({ onGameOver }) => {
       // Ignore non character keys briefly
       if (e.key.length > 1 && e.key !== 'Backspace') return;
       
+      if (!startTime) setStartTime(Date.now());
       const char = e.key.toLowerCase();
+      if (char !== 'backspace') setTotalStrokes(s => s + 1);
       
       if (char === 'backspace') {
         setActiveInput(prev => prev.slice(0, -1));
@@ -179,6 +184,7 @@ export const Type3D = ({ onGameOver }) => {
              }
           } else {
              // Miss penalty (shake screen? play sound?)
+             setErrors(err => err + 1);
              setScore(prev => Math.max(0, prev - 10));
           }
         } else {
@@ -203,7 +209,12 @@ export const Type3D = ({ onGameOver }) => {
     setWords(prev => prev.filter(w => w.id !== id));
     setHealth(prev => {
       const nextH = prev - 10;
-      if (nextH <= 0) onGameOver(score);
+      if (nextH <= 0) {
+        const duration = startTime ? (Date.now() - startTime) / 60000 : 0.1;
+        const wpm = Math.round((totalStrokes / 5) / duration);
+        const accuracy = totalStrokes > 0 ? Math.round(((totalStrokes - errors) / totalStrokes) * 100) : 100;
+        onGameOver({ score, wpm, accuracy, errors, totalStrokes });
+      }
       return nextH;
     });
     if (activeTargetId === id) {

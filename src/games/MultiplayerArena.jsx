@@ -46,6 +46,14 @@ export const MultiplayerArena = ({ onGameOver }) => {
     if (phase === 'battle' && inputRef.current) inputRef.current.focus();
   }, [phase]);
 
+  const finishBattle = useCallback((playerWon) => {
+    setPhase('end');
+    setTimeout(() => {
+       const score = playerWon ? 15000 : playerProgress * 50;
+       onGameOver(score);
+    }, 3000);
+  }, [playerProgress, onGameOver]);
+
   // Opponent AI Mocking a real player's erratic typing (bursts of speed)
   useEffect(() => {
     if (phase === 'battle') {
@@ -66,15 +74,7 @@ export const MultiplayerArena = ({ onGameOver }) => {
 
       return () => clearInterval(oppTimer);
     }
-  }, [phase, textToType.length]);
-
-  const finishBattle = (playerWon) => {
-    setPhase('end');
-    setTimeout(() => {
-       const score = playerWon ? 15000 : playerProgress * 50;
-       onGameOver(score);
-    }, 3000);
-  };
+  }, [phase, textToType.length, finishBattle]);
 
   const handleInput = (e) => {
     if (phase !== 'battle') return;

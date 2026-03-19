@@ -9,10 +9,14 @@ export const ZombieSurvival = ({ onGameOver }) => {
   const [currentInput, setCurrentInput] = useState('');
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   const gameLoopRef = useRef(null);
   
   const distanceMax = 100;
 
+  // Distance update loop
   useEffect(() => {
     // Spawn zombie logic
     const spawner = setInterval(() => {
@@ -20,7 +24,6 @@ export const ZombieSurvival = ({ onGameOver }) => {
        setZombies(prev => [...prev, { id: Date.now(), word, distance: distanceMax }]);
     }, 2500); // spawn every 2.5s
 
-    // Distance update loop
     gameLoopRef.current = setInterval(() => {
        setZombies(prev => {
          const nextZombies = prev.map(z => ({ ...z, distance: z.distance - 2 })); // reduce distance
@@ -29,7 +32,18 @@ export const ZombieSurvival = ({ onGameOver }) => {
          if (encroached.length > 0) {
            setLives(l => {
              const newL = l - encroached.length;
-             if (newL <= 0) setTimeout(() => onGameOver(score), 0);
+             if (newL <= 0) {
+                const duration = startTime ? (Date.now() - startTime) / 60000 : 0.1;
+                const wpm = Math.round((totalStrokes / 5) / duration);
+                const accuracy = totalStrokes > 0 ? Math.round(((totalStrokes - errors) / totalStrokes) * 100) : 100;
+                setTimeout(() => onGameOver({
+                  score,
+                  wpm,
+                  accuracy,
+                  errors,
+                  totalStrokes
+                }), 100);
+             }
              return newL;
            });
          }
@@ -38,7 +52,7 @@ export const ZombieSurvival = ({ onGameOver }) => {
     }, 100); // 10 ticks per sec
 
     return () => { clearInterval(spawner); clearInterval(gameLoopRef.current); };
-  }, [score, onGameOver]); // Need refs or omit score for stability
+  }, [score, onGameOver, startTime, totalStrokes, errors]);
 
   // Typing logic
   useEffect(() => {
@@ -46,8 +60,16 @@ export const ZombieSurvival = ({ onGameOver }) => {
         if (e.key.length !== 1 && e.key !== 'Backspace') return;
         
         let newStr = currentInput;
-        if (e.key === 'Backspace') newStr = newStr.slice(0, -1);
-        else newStr += e.key;
+        if (e.key === 'Backspace') {
+          newStr = newStr.slice(0, -1);
+        } else {
+          if (!startTime) setStartTime(Date.now());
+          setTotalStrokes(s => s + 1);
+          newStr += e.key;
+          
+          const isPotentialMatch = zombies.some(z => z.word.startsWith(newStr.toLowerCase()));
+          if (!isPotentialMatch) setErrors(err => err + 1);
+        }
 
         setCurrentInput(newStr);
 

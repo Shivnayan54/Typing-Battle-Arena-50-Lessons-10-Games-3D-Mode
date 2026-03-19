@@ -158,7 +158,8 @@ export const SpeedRush = ({ onGameOver }) => {
   } = useTypingEngine(currentText);
 
   const inputRef = useRef(null);
-  const totalSecondsRef = useRef(0);
+  const textContainerRef = useRef(null);
+  const [totalSeconds, setTotalSeconds] = useState(0);
 
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
@@ -179,7 +180,13 @@ export const SpeedRush = ({ onGameOver }) => {
         if (p <= 1) {
           clearInterval(t);
           const finalScore = Math.floor(wpm * (accuracy / 100) * 10);
-          setTimeout(() => onGameOver(finalScore), 200);
+          setTimeout(() => onGameOver({
+            score: finalScore,
+            wpm,
+            accuracy,
+            errors,
+            totalStrokes: userInput.length
+          }), 200);
           return 0;
         }
         return p - 1;
@@ -200,10 +207,20 @@ export const SpeedRush = ({ onGameOver }) => {
     }
   }, [userInput, currentText, isActive, selectedMinutes, timeLeft]);
 
+  // ─── Auto-scroll cursor into view (Optimized)
+  useEffect(() => {
+    if (!textContainerRef.current) return;
+    const cursor = textContainerRef.current.querySelector('.char-cursor');
+    if (cursor) {
+      // nearest is less aggressive than center and prevents jitter
+      cursor.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [userInput.length]);
+
   const handleStart = (minutes) => {
     setSelectedMinutes(minutes);
     setTimeLeft(minutes * 60);
-    totalSecondsRef.current = minutes * 60;
+    setTotalSeconds(minutes * 60);
   };
 
   const handleContinue = useCallback(() => {
@@ -219,13 +236,14 @@ export const SpeedRush = ({ onGameOver }) => {
   }, [reset]);
 
   // Format mm:ss
+  // Format mm:ss
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m}:${String(s).padStart(2, '0')}`;
   };
 
-  const progress = totalSecondsRef.current > 0 ? ((totalSecondsRef.current - timeLeft) / totalSecondsRef.current) * 100 : 0;
+  const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
 
   // Render text with highlights
   const renderText = () => {
@@ -236,7 +254,7 @@ export const SpeedRush = ({ onGameOver }) => {
           ? 'text-white font-bold'
           : 'text-red-400 bg-red-500/20';
       } else if (index === userInput.length) {
-        colorClass = 'text-orange-400 border-b-2 border-orange-400';
+        colorClass = 'text-orange-400 border-b-2 border-orange-400 char-cursor';
       }
       return (
         <span key={index} className={`transition-colors duration-75 ${colorClass}`}>
@@ -313,9 +331,9 @@ export const SpeedRush = ({ onGameOver }) => {
         </div>
       </div>
 
-      {/* ── Text area ── */}
       <div
-        className="flex-1 w-full bg-slate-900/60 border border-slate-700/50 rounded-2xl p-6 text-2xl leading-loose tracking-wide font-mono overflow-hidden cursor-text relative"
+        ref={textContainerRef}
+        className="flex-1 w-full bg-slate-900/60 border border-slate-700/50 rounded-2xl p-6 text-2xl leading-loose tracking-wide font-mono overflow-y-hidden cursor-text relative"
         onClick={() => inputRef.current?.focus()}
       >
         {/* Start hint */}
@@ -337,7 +355,7 @@ export const SpeedRush = ({ onGameOver }) => {
           value={userInput}
           onChange={e => handleCharInput(e.target.value)}
           disabled={timeLeft === 0}
-          className="absolute opacity-0 w-0 h-0 -z-10 focus:outline-none"
+          className="fixed opacity-0 pointer-events-none"
           autoFocus
           autoComplete="off"
           autoCorrect="off"

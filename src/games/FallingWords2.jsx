@@ -13,6 +13,9 @@ export const FallingWords2 = ({ onGameOver }) => {
   const [lives, setLives] = useState(5); // Increased for V2
   const [combo, setCombo] = useState(0); // V2 Feature
   const [multiplier, setMultiplier] = useState(1); // V2 Feature
+  const [totalStrokes, setTotalStrokes] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [startTime, setStartTime] = useState(null);
   
   const [words, setWords] = useState([]);
   const [userInput, setUserInput] = useState('');
@@ -51,7 +54,12 @@ export const FallingWords2 = ({ onGameOver }) => {
           if (w.y > GAME_HEIGHT - 40) {
             setLives((l) => {
               const newL = l - 1;
-              if (newL <= 0) setTimeout(() => onGameOver(score), 0);
+              if (newL <= 0) {
+                const duration = startTime ? (Date.now() - startTime) / 60000 : 0.1;
+                const wpm = Math.round((totalStrokes / 5) / duration);
+                const accuracy = totalStrokes > 0 ? Math.round(((totalStrokes - errors) / totalStrokes) * 100) : 100;
+                setTimeout(() => onGameOver({ score, wpm, accuracy, errors, totalStrokes }), 0);
+              }
               return newL;
             });
             setCombo(0); // Break combo
@@ -80,7 +88,16 @@ export const FallingWords2 = ({ onGameOver }) => {
 
   const handleInput = (e) => {
     if (!isPlaying) return;
+    if (!startTime) setStartTime(Date.now());
     const value = e.target.value.trim().toLowerCase();
+    
+    if (e.target.value.length > userInput.length) {
+      setTotalStrokes(s => s + 1);
+      // Check for typo in current input vs possible words
+      const isTypo = !words.some(w => w.text.toLowerCase().startsWith(value));
+      if (isTypo) setErrors(err => err + 1);
+    }
+    
     setUserInput(e.target.value);
 
     const matchedWordIndex = words.findIndex(w => w.text.toLowerCase() === value);
